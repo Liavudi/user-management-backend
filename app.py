@@ -1,5 +1,5 @@
 import requests
-
+from pymongo import MongoClient
 from user_managment import UserManagment
 
 from flask import Flask, render_template, request
@@ -8,7 +8,9 @@ import json
 app = Flask("UserManagement")
 um = UserManagment()
 cors = CORS(app)
-
+client = MongoClient('mongodb://localhost:27017/')
+db = client['users']
+collection = db.all_users
 
 @app.route('/')
 def index():
@@ -23,7 +25,8 @@ def create_user():
     # for i in input_data:
     #     new_user = User(name=i.get('name'), age=i.get('age'))
     #     um.add_user(new_user)
-    return 'successfully added user'
+
+    return {}
     
 @app.route("/users/<user_id>", methods=['DELETE'])
 def delete_user(user_id):
@@ -34,19 +37,20 @@ def delete_user(user_id):
     # exist_user = User(name=data.get('name'), age=data.get('age'))
     # um.delete_user(exist_user)
 
-        um.delete_user(user_id)
-        return f'successfully deleted user id {user_id} '
+       return um.delete_user(user_id)
+
 
 
 @app.route("/users", methods=['GET'])
 def list_users():
     user_list = um.list_users()
-    response = {
-        'users': []
-    }
-    for user in user_list:
-        response['users'].append(user.to_dict())
-    return response
+    # response = {
+    #     'users': []
+    # }
+    #
+    # response['users'].append(user_list)
+
+    return user_list
 
 # @app.route("/update_age", methods=['PUT'])
 # def update_name():
@@ -57,11 +61,9 @@ def list_users():
 #     return 'succesfully updated name'
 
 @app.route("/users/<id>", methods=['PUT'])
-def update_name(id):
+def update_user(id):
     data = json.loads(request.data)
-    new_name = data.get('name')
-    exist_user_id = id
-    um.update_user_name(exist_user_id, new_name)
-    return 'succesfully updated name'
+    um.update_user(id,name= data.get('name'), age=data.get('age'))
+    return {}
 
 app.run(debug=True)

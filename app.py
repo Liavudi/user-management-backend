@@ -108,7 +108,7 @@ def list_users():
 def update_user(user_id):
     try:
         data = json.loads(request.data)
-        um.update_user(user_id, name=data.get('name'), email=data.get('email'), age=data.get('age'))
+        um.update_user(user_id, name=data.get('name'), age=data.get('age'))
         return Response(json.dumps({
             'status': {
                 'message': 'User has been updated successfully'
@@ -126,12 +126,7 @@ def update_user(user_id):
                 'message': DBError.message
             }
         }), status=503)
-    except Exception:
-        return Response(json.dumps({
-            'error': {
-                'message': 'Internal server error'
-            }
-        }), status=500)
+    e
 
 @app.route("/login", methods=['POST'])
 def log_in():

@@ -39,7 +39,7 @@ class UserManagement:
                 raise NotFound('Username or password is incorrect')
 
     def update_user(self, u_id: int, name: str, age: int):
-        validation(name, age)
+        validation(name=name, age= age)
         try:
             user_objects = [users_id for users_id in self.collection.find({'_id': ObjectId(u_id)})]
             if len(user_objects) != 1:

@@ -24,7 +24,7 @@ class UsernameAlreadyExists(Exception):
         self.message = message
 
 
-def validation(user_name: str = 0, name: str = 0, password: int = 0, email: str = '', age: int = 0):
+def validation(user_name: str = '', name: str = '', password: int = 0, email: str = '', age: int = 0):
     for each_letter in name:
         if each_letter.isdigit():
             raise InvalidInputError('Name cannot contain numbers')

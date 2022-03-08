@@ -1,16 +1,21 @@
-class User:
-    def __init__(self, name: str, age: int):
-        # TODO: add a validation that the name and age are correct
-        # name - cannot be empty!
-        # age - must be above 18
+from exceptions import *
+
+class User():
+    def __init__(self, user_name: str, name: str, password: int, email: str, age: int):
+        validation(user_name, name, password, email, age)
+        self.user_name = user_name
         self.name = name
         self.age = age
-
+        self.password = password
+        self.email = email
     def print_user(self):
         print(f'Name: {self.name}, Age: {self.age}')
 
     def to_dict(self) -> dict:
         return {
+            'username': self.user_name,
             'name': self.name,
+            'password': self.password,
+            'email': self.email,
             'age': self.age
         }

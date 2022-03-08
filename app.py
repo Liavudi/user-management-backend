@@ -1,69 +1,180 @@
-import requests
-from pymongo import MongoClient
-from user_managment import UserManagment
-
-from flask import Flask, render_template, request
+from user_management import UserManagement
+from flask import Flask, request, Response
 from flask_cors import CORS
 import json
+from exceptions import *
+
 app = Flask("UserManagement")
-um = UserManagment()
+um = UserManagement()
 cors = CORS(app)
-client = MongoClient('mongodb://localhost:27017/')
-db = client['users']
-collection = db.all_users
+# TODO: (General notes)
+# 2. Do input validations and error handling for the next endpoints like I wrote on create user
+# Relevant status codes to return
+# Success:
+#   200 Ok
+#   201 Created (after creating an object)
+# Failure:
+#   400 Bad Request (when validation fails on the input)
+#   503 Service unavailable
+#   500 If something else went wrong!
+
 
 @app.route('/')
 def index():
-    return 'no frontend yet'
+    error_message = 'Couldn\'t reach the DB. Try again later'
+    return Response(json.dumps({
+        'error': {
+            'message': error_message
+        }
+    }), status=400, mimetype='application/json')
 
-@app.route("/users",methods=['POST'])
+
+@app.route("/users", methods=['POST'])
 def create_user():
     input_data = json.loads(request.data)
-    # id = um.user_id()
-    # new_user = User( name=input_data.get('name'), age=input_data.get('age'))
-    um.add_user(name=input_data.get('name'),age=input_data.get('age'))
-    # for i in input_data:
-    #     new_user = User(name=i.get('name'), age=i.get('age'))
-    #     um.add_user(new_user)
+    try:
+        um.add_user(user_name=input_data.get('username'),
+                    name=input_data.get('name'),
+                    password=input_data.get('password'),
+                    email=input_data.get('email'),
+                    age=input_data.get('age'))
+    except InvalidInputError as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }
+        ), status=400)
+    except DBError:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Service unavailable'
+            }
+        }), status=503)
+    except UsernameAlreadyExists as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }),status = 500)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
     return {}
-    
+
+
 @app.route("/users/<user_id>", methods=['DELETE'])
 def delete_user(user_id):
-    # input_data = json.loads(request.data)
-    # id = input_data.get('id')
-
-    # data = json.loads(request.data)
-    # exist_user = User(name=data.get('name'), age=data.get('age'))
-    # um.delete_user(exist_user)
-
-       return um.delete_user(user_id)
-
+    try:
+        return um.delete_user(user_id)
+    except NotFound as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=404)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
 
 @app.route("/users", methods=['GET'])
 def list_users():
-    user_list = um.list_users()
-    # response = {
-    #     'users': []
-    # }
-    #
-    # response['users'].append(user_list)
+    try:
+        user_list = um.list_users()
+        return user_list
+    except DBError:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Service unavailable'
+            }
+        }), status=503)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
-    return user_list
 
-# @app.route("/update_age", methods=['PUT'])
-# def update_name():
-#     data = json.loads(request.data)
-#     new_age = data.get('new')
-#     exist_user = data.get('age')
-#     um.update_user_name(exist_user, new_age)
-#     return 'succesfully updated name'
+@app.route("/users/<user_id>", methods=['PUT'])
+def update_user(user_id):
+    try:
+        data = json.loads(request.data)
+        um.update_user(user_id, name=data.get('name'), email=data.get('email'), age=data.get('age'))
+        return Response(json.dumps({
+            'status': {
+                'message': 'User has been updated successfully'
+            }
+        }), status=200)
+    except InvalidInputError as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=400)
+    except DBError:
+        return Response(json.dumps({
+            'error': {
+                'message': DBError.message
+            }
+        }), status=503)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
-@app.route("/users/<id>", methods=['PUT'])
-def update_user(id):
-    data = json.loads(request.data)
-    um.update_user(id,name= data.get('name'), age=data.get('age'))
-    return {}
+@app.route("/login", methods=['POST'])
+def log_in():
+    try:
+        input_data = json.loads(request.data)
+        um.login(user_name=input_data.get('userName'), password=input_data.get('password'))
+        return Response(json.dumps({
+            'status': {
+                'message': 'User details are correct, logging in'
+            }
+        }), status=200)
+
+    except NotFound as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=404)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
+
+
+@app.route("/todolist", methods=['POST'])
+def create_todo():
+    input_data = json.loads(request.data)
+    print(input_data)
+    return um.create_todo_list(user_name=input_data.get('user'), todo=input_data.get('todo'))
+
+
+
+@app.route("/todolist", methods=['GET'])
+def get_todo():
+    return um.get_todo_list()
+
+
+@app.route("/todolist/<user>", methods=['DELETE'])
+def delete_todo(user):
+    return um.delete_todo(user)
+
+
 
 app.run(debug=True)

@@ -3,40 +3,62 @@ from pymongo import MongoClient
 from bson import ObjectId
 from user import User
 from consts import DBURL, DB
+from exceptions import *
 
-
-class UserManagment():
+class UserManagement:
     def __init__(self):
         self.userlist: List[User] = []
         self.client = MongoClient(DBURL)
         self.db = self.client[DB]
         self.collection = self.db.users
+        self.logged_in = False
 
-    def add_user(self, name: str, age: int):
-        if len(name) <= 2:
-            raise Exception('Name is less than 2 letters.')
-        if age < 18:
-            raise Exception('You must be over 18')
+    def add_user(self, user_name: str, name: str, password: int, email: str, age: int):
 
-        new_user = User(name, age)
+        om = self.collection.find({}, {'_id': 0, 'username': 1})
+        for o in om:
+            print(o['username'])
+            if o['username'] == user_name:
+                raise UsernameAlreadyExists('Username already exists')
+        new_user = User(user_name, name, password, email, age)
         new_user = new_user.to_dict()
-        # TODO: add error handling in case the insertion fails
-        self.collection.insert_one(new_user)
+        try:
+            self.collection.insert_one(new_user)
+        except Exception as exc:
+            raise DBError('Failed to insert the user to the db', internal_exception=exc)
+
+    def login(self, user_name: str, password: int):
+        details = self.collection.find({"username": f"{user_name}"}, {'_id': 0, 'name': 0, 'email': 0, 'age': 0})
+        print(details)
+        for user in details:
+            print(user)
+            if user['username'] == user_name and user['password'] == password:
+                print('Alright good')
+
+            else:
+                raise NotFound('Username or password is incorrect')
 
     def update_user(self, u_id: int, name: str, age: int):
-        user_objects = [users_id for users_id in self.collection.find({'_id': ObjectId(u_id)})]
-        if len(user_objects) != 1:
-            raise Exception('Failed to find user with such id in the DB')
-        user_id = user_objects[0]
-
-        self.collection.replace_one({'name': user_id['name'], 'age': user_id['age']}, {
-            'name': name,
-            'age': age
-        })
-        return {}
+        validation(name, age)
+        try:
+            user_objects = [users_id for users_id in self.collection.find({'_id': ObjectId(u_id)})]
+            if len(user_objects) != 1:
+                # Failed to find (A.K.A NotFound) status code is 404, handle it accordingly wherever you think is right)
+                raise NotFound('Failed to find user with such id in the DB')
+            user_id = user_objects[0]
+            self.collection.replace_one({'name': user_id['name'], 'age': user_id['age']}, {
+                'name': name,
+                'age': age
+            })
+        except Exception as exc:
+            raise DBError('Failed to insert the user to the db', internal_exception=exc)
 
     def delete_user(self, _id):
-        self.collection.delete_one({'_id': ObjectId(_id)})
+        try:
+            self.collection.delete_one({'_id': ObjectId(_id)})
+        except Exception as exc:
+            raise DBError('Failed to insert the user to the db', internal_exception=exc)
+
         return {}
 
     def show_user_list(self):
@@ -44,18 +66,38 @@ class UserManagment():
             user.print_user()
 
     def list_users(self) -> dict:
-        user_list = self.collection.find({})
-        parsed_user_list = []
-        for user in user_list:
-            parsed_user_list.append({
-                'id': str(user['_id']),
-                'name': user['name'],
-                'age': user['age']})
-        all_users = {
-            'users': parsed_user_list
+        try:
+            user_list = self.collection.find({})
+            parsed_user_list = []
+            for user in user_list:
+                parsed_user_list.append({
+                    'id': str(user['_id']),
+                    'username': user['username'],
+                    'name': user['name'],
+                    'email': user['email'],
+                    'age': user['age']})
+            all_users = {
+                'users': parsed_user_list
+            }
+
+            return all_users
+        except Exception as exc:
+            raise DBError('Failed to insert the user to the db', internal_exception=exc)
+
+    def create_todo_list(self,user_name, todo):
+        print(user_name, todo)
+        self.collection.update_one({'username': user_name}, {"$set": {"todo": todo}})
+        return {}
+
+    def get_todo_list(self,):
+        all_list = []
+        for o in self.collection.find({}, {'username': 1,'todo': 1, '_id':0}):
+            all_list.append(o)
+        all_todos = {
+            'todos': all_list
         }
+        return all_todos
 
-        return all_users
-
-
-
+    def delete_todo(self, user_name):
+        self.collection.update_one({'username': user_name}, {'$unset': {'todo': 1}})
+        return {}

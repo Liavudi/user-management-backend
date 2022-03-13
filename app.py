@@ -157,8 +157,8 @@ def log_in():
 def create_todo():
     input_data = json.loads(request.data)
     print(input_data)
-    return um.create_todo_list(user_name=input_data.get('user'), todo=input_data.get('todo'))
-
+    um.create_todo_list(user_name=input_data.get('user'), todo=input_data.get('todo'))
+    return {}
 
 
 @app.route("/todolist", methods=['GET'])
@@ -166,9 +166,9 @@ def get_todo():
     return um.get_todo_list()
 
 
-@app.route("/todolist/<user>", methods=['DELETE'])
-def delete_todo(user):
-    return um.delete_todo(user)
+@app.route("/todolist/<user>/<todo_id>", methods=['DELETE'])
+def delete_todo(user, todo_id):
+    return um.delete_todo(todo_id=todo_id)
 
 
 

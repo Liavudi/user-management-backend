@@ -11,6 +11,7 @@ class UserManagement:
         self.client = MongoClient(DBURL)
         self.db = self.client[DB]
         self.collection = self.db.users
+        self.todo_collection = self.db.todos
         self.logged_in = False
 
     def add_user(self, user_name: str, name: str, password: int, email: str, age: int):
@@ -85,19 +86,30 @@ class UserManagement:
             raise DBError('Failed to insert the user to the db', internal_exception=exc)
 
     def create_todo_list(self,user_name, todo):
-        print(user_name, todo)
-        self.collection.update_one({'username': user_name}, {"$set": {"todo": todo}})
+        dict = {
+            'username': user_name,
+            'todo': todo
+        }
+        self.todo_collection.insert_one(dict)
         return {}
 
     def get_todo_list(self,):
-        all_list = []
-        for o in self.collection.find({}, {'username': 1,'todo': 1, '_id':0}):
-            all_list.append(o)
+        parsed_todo_list = []
+        todo_list = self.todo_collection.find({}, {'username': 1,'todo': 1, })
+
+        for todo in todo_list:
+            print(todo)
+            parsed_todo_list.append({
+                '_id': str(todo['_id']),
+                'username': todo['username'],
+                'todo': todo['todo']
+            })
         all_todos = {
-            'todos': all_list
+            'todos': parsed_todo_list
         }
         return all_todos
 
-    def delete_todo(self, user_name):
-        self.collection.update_one({'username': user_name}, {'$unset': {'todo': 1}})
+    def delete_todo(self, todo_id):
+        print(todo_id)
+        self.todo_collection.delete_one({'_id': ObjectId(todo_id)})
         return {}

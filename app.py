@@ -1,4 +1,5 @@
 from user_management import UserManagement
+from todo_management import TodoManagement
 from flask import Flask, request, Response
 from flask_cors import CORS
 import json
@@ -6,17 +7,8 @@ from exceptions import *
 
 app = Flask("UserManagement")
 um = UserManagement()
+tm = TodoManagement()
 cors = CORS(app)
-# TODO: (General notes)
-# 2. Do input validations and error handling for the next endpoints like I wrote on create user
-# Relevant status codes to return
-# Success:
-#   200 Ok
-#   201 Created (after creating an object)
-# Failure:
-#   400 Bad Request (when validation fails on the input)
-#   503 Service unavailable
-#   500 If something else went wrong!
 
 
 @app.route('/')
@@ -38,6 +30,9 @@ def create_user():
                     password=input_data.get('password'),
                     email=input_data.get('email'),
                     age=input_data.get('age'))
+        return Response(json.dumps({
+                'data': 'User Created Successfully'
+        }), status=201)
     except InvalidInputError as exc:
         return Response(json.dumps({
             'error': {
@@ -64,13 +59,14 @@ def create_user():
             }
         }), status=500)
 
-    return {}
-
 
 @app.route("/users/<user_id>", methods=['DELETE'])
 def delete_user(user_id):
     try:
-        return um.delete_user(user_id)
+        um.delete_user(user_id)
+        return Response(json.dumps({
+            'data': 'User deleted successfully!'
+        }))
     except NotFound as exc:
         return Response(json.dumps({
             'error': {
@@ -110,9 +106,7 @@ def update_user(user_id):
         data = json.loads(request.data)
         um.update_user(user_id, name=data.get('name'), age=data.get('age'))
         return Response(json.dumps({
-            'status': {
-                'message': 'User has been updated successfully'
-            }
+            'data': 'User has been updated successfully'
         }), status=200)
     except InvalidInputError as exc:
         return Response(json.dumps({
@@ -126,7 +120,7 @@ def update_user(user_id):
                 'message': DBError.message
             }
         }), status=503)
-    e
+
 
 @app.route("/login", methods=['POST'])
 def log_in():
@@ -155,21 +149,64 @@ def log_in():
 
 @app.route("/todolist", methods=['POST'])
 def create_todo():
-    input_data = json.loads(request.data)
-    print(input_data)
-    um.create_todo_list(user_name=input_data.get('user'), todo=input_data.get('todo'))
-    return {}
+    try:
+        input_data = json.loads(request.data)
+        tm.create_todo_list(user_name=input_data.get('user'), todo=input_data.get('todo'))
+        return Response(json.dumps({
+            'data': 'Todo created Successfully!'
+        }), status=201)
+    except NotFound as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=404)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
 
-@app.route("/todolist", methods=['GET'])
-def get_todo():
-    return um.get_todo_list()
+@app.route("/todolist/<userId>", methods=['GET'])
+def get_todo(userId):
+    try:
+        return tm.get_todo_list(userId)
+    except NotFound as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=404)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
 
-@app.route("/todolist/<user>/<todo_id>", methods=['DELETE'])
-def delete_todo(user, todo_id):
-    return um.delete_todo(todo_id=todo_id)
+@app.route("/todolist/<todo_id>", methods=['DELETE'])
+def delete_todo(todo_id):
+    try:
+        tm.delete_todo(todo_id=todo_id)
+        return Response(json.dumps({
+            'data': 'User deleted successfully!'
 
+        }))
+    except NotFound as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=404)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
 
 app.run(debug=True)

@@ -1,4 +1,3 @@
-from consts import *
 class DBError(Exception):
     def __init__(self, message: str, internal_exception: Exception = None):
         super().__init__(message)

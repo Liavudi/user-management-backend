@@ -1,5 +1,6 @@
 from exceptions import *
 
+
 class User():
     def __init__(self, user_name: str, name: str, password: int, email: str, age: int):
         validation(user_name, name, password, email, age)
@@ -8,8 +9,6 @@ class User():
         self.age = age
         self.password = password
         self.email = email
-    def print_user(self):
-        print(f'Name: {self.name}, Age: {self.age}')
 
     def to_dict(self) -> dict:
         return {

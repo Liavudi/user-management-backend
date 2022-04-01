@@ -1,6 +1,7 @@
+import datetime
 from user_management import UserManagement
 from todo_management import TodoManagement
-from flask import Flask, request, Response
+from flask import Flask, request, Response, session
 from flask_cors import CORS
 import json
 from exceptions import *
@@ -8,17 +9,28 @@ from exceptions import *
 app = Flask("UserManagement")
 um = UserManagement()
 tm = TodoManagement()
-cors = CORS(app)
+cors = CORS(app, supports_credentials=True)
+app.secret_key = '5#dwda1d23wa]/'
+app.permanent_session_lifetime = datetime.timedelta(days=1)
+app.config.update(
+    SECRET_KEY='test',
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE="None"
+)
 
 
-@app.route('/')
+@app.route('/', methods=['POST'])
 def index():
-    error_message = 'Couldn\'t reach the DB. Try again later'
-    return Response(json.dumps({
-        'error': {
-            'message': error_message
-        }
-    }), status=400, mimetype='application/json')
+    input_data = json.loads(request.data)
+    if 'username' in session:
+        username = session['username']
+        return Response(json.dumps({'data': username}))
+    # error_message = 'Couldn\'t reach the DB. Try again later'
+    # return Response(json.dumps({
+    #     'error': {
+    #         'message': error_message
+    #     }
+    # }), status=400, mimetype='application/json')
 
 
 @app.route("/users", methods=['POST'])
@@ -60,10 +72,11 @@ def create_user():
         }), status=500)
 
 
-@app.route("/users/<user_id>", methods=['DELETE'])
-def delete_user(user_id):
+@app.route("/users/<user_name>/<user_id>", methods=['DELETE'])
+def delete_user(user_name, user_id):
     try:
         um.delete_user(user_id)
+        tm.delete_todo_list(user_name)
         return Response(json.dumps({
             'data': 'User deleted successfully!'
         }))
@@ -81,17 +94,26 @@ def delete_user(user_id):
         }), status=500)
 
 
-@app.route("/users", methods=['GET'])
-def list_users():
+@app.route("/users/<user_name>", methods=['GET'])
+def list_users(user_name):
     try:
-        user_list = um.list_users()
+        user_list = um.list_users(user_name= user_name)
         return user_list
+
     except DBError:
         return Response(json.dumps({
             'error': {
                 'message': 'Service unavailable'
             }
         }), status=503)
+
+    except NotAuthorized as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
+            }
+        }), status=401)
+
     except Exception:
         return Response(json.dumps({
             'error': {
@@ -104,7 +126,7 @@ def list_users():
 def update_user(user_id):
     try:
         data = json.loads(request.data)
-        um.update_user(user_id, name=data.get('name'), age=data.get('age'))
+        um.update_user(user_id, name=data.get('name'), age=data.get('age'), email=data.get('email'), role=data.get('role'), user_name= data.get('username'))
         return Response(json.dumps({
             'data': 'User has been updated successfully'
         }), status=200)
@@ -126,25 +148,29 @@ def update_user(user_id):
 def log_in():
     try:
         input_data = json.loads(request.data)
-        um.login(user_name=input_data.get('userName'), password=input_data.get('password'))
+        login_details = um.login(user_name=input_data.get('userName'), password=input_data.get('password'))
+        session['username'] = str(input_data.get('userName'))
         return Response(json.dumps({
-            'status': {
-                'message': 'User details are correct, logging in'
-            }
+                'data': login_details
         }), status=200)
-
+    except NotExists as exc:
+        return Response(json.dumps({
+            'error':{
+                'message': exc.message
+            }
+        }), status=404)
     except NotFound as exc:
         return Response(json.dumps({
             'error': {
                 'message': exc.message
             }
         }), status=404)
-    except Exception:
-        return Response(json.dumps({
-            'error': {
-                'message': 'Internal server error'
-            }
-        }), status=500)
+    # except Exception:
+    #     return Response(json.dumps({
+    #         'error': {
+    #             'message': 'Internal server error'
+    #         }
+    #     }), status=500)
 
 
 @app.route("/todolist", methods=['POST'])
@@ -207,6 +233,8 @@ def delete_todo(todo_id):
                 'message': 'Internal server error'
             }
         }), status=500)
+
+
 
 
 app.run(debug=True)

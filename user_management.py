@@ -6,6 +6,7 @@ from consts import DBURL, DB
 from exceptions import *
 from passlib.hash import sha256_crypt
 
+
 class UserManagement:
     def __init__(self):
         self.userlist: List[User] = []
@@ -22,6 +23,7 @@ class UserManagement:
                 raise AlreadyExists('Username already exists')
             if o['email'] == email:
                 raise AlreadyExists('Email already exists')
+        validation(user_name, name, password, email, age)
         encrypt_password = self.hash.encrypt(str(password))
         new_user = User(user_name=user_name, name=name, password=encrypt_password, email=email, age=age, role=role)
         new_user = new_user.to_dict()
@@ -47,60 +49,61 @@ class UserManagement:
             else:
                 raise NotFound('Username or password are incorrect')
 
-    def update_user(self, u_id: int, name: str, age: int, email:str, role:str, user_name:str):
+    def update_user(self, u_id: int, name: str, age: int, email: str, role: str, user_name: str, logged: str):
         try:
             validation(name=name, age=age, email=email, user_name=user_name)
-            if self.is_authorized(user_name):
+            if self.is_authorized(logged):
                 user_objects = [users_id for users_id in self.collection.find({'_id': ObjectId(u_id)})]
                 if len(user_objects) != 1:
                     raise NotFound('Failed to find user with such id in the DB')
+                user_id = user_objects[0]
+                self.collection.replace_one({
+                    'name': user_id['name'],
+                    'age': user_id['age'],
+                    'email': user_id['email'],
+                    'username': user_id['username'],
+                    'password': user_id['password'],
+                    'role': user_id['role']},
+                    {
+                    'name': name,
+                    'age': age,
+                    'email': email,
+                    'username': user_id['username'],
+                    'password': user_id['password'],
+                    'role': role
+                    })
+                return {}
             raise NotAuthorized('You are not authorized!')
-            user_id = user_objects[0]
-            self.collection.replace_one({
-                'name': user_id['name'],
-                'age': user_id['age'],
-                'email': user_id['email'],
-                'username': user_id['username'],
-                'password': user_id['password'],
-                'role': user_id['role']},
-                {
-                'name': name,
-                'age': age,
-                'email': email,
-                'username': user_id['username'],
-                'password': user_id['password'],
-                'role': role
-                })
         except Exception as exc:
             raise DBError('Failed to insert the user to the db', internal_exception=exc)
 
     def delete_user(self, _id):
         try:
-                self.collection.delete_one({'_id': ObjectId(_id)})
-                return {}
+            self.collection.delete_one({'_id': ObjectId(_id)})
+            return {}
         except Exception as exc:
             raise DBError('Failed to delete the user from the db', internal_exception=exc)
 
     def list_users(self, user_name) -> dict:
-            try:
-                if self.is_authorized(user_name):
-                    user_list = self.collection.find({})
-                    parsed_user_list = []
-                    for user in user_list:
-                        parsed_user_list.append({
-                            'id': str(user['_id']),
-                            'username': user['username'],
-                            'name': user['name'],
-                            'email': user['email'],
-                            'age': user['age'],
-                            'role': user['role']})
-                    all_users = {
-                        'users': parsed_user_list
-                    }
-                    return all_users
-            except Exception as exc:
-                raise DBError('Failed to get the users from the db', internal_exception=exc)
-            raise NotAuthorized('You are not authorized!')
+        try:
+            if self.is_authorized(user_name):
+                user_list = self.collection.find({})
+                parsed_user_list = []
+                for user in user_list:
+                    parsed_user_list.append({
+                        'id': str(user['_id']),
+                        'username': user['username'],
+                        'name': user['name'],
+                        'email': user['email'],
+                        'age': user['age'],
+                        'role': user['role']})
+                all_users = {
+                    'users': parsed_user_list
+                }
+                return all_users
+        except Exception as exc:
+            raise DBError('Failed to get the users from the db', internal_exception=exc)
+        raise NotAuthorized('You are not authorized!')
 
     def is_authorized(self, user_name) -> bool:
         user_details = self.collection.find({
@@ -117,4 +120,4 @@ class UserManagement:
         for details in user_details:
             if details['role'] == 'admin':
                 return True
-            return  False
+            return False

@@ -5,7 +5,6 @@ from exceptions import *
 
 
 class TodoManagement:
-
     def __init__(self):
         self.client = MongoClient(DBURL)
         self.db = self.client[DB]
@@ -23,13 +22,12 @@ class TodoManagement:
         return {}
 
     def delete_todo_list(self, user_name):
-        #TODO: DOESN'T DELETE THE TODO LIST
         try:
             d = self.todo_collection.delete_many({'ownerId': user_name})
-            print(d.deleted_count, " documents deleted !!")
         except Exception as exc:
             raise DBError('Failed to delete the todo from the db', internal_exception=exc)
         return {}
+    
     def get_todo_list(self, user_id):
         try:
             parsed_todo_list = []

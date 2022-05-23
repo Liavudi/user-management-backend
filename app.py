@@ -60,12 +60,12 @@ def create_user():
                 'message': exc.message
             }
         }),status = 500)
-    # except Exception:
-    #     return Response(json.dumps({
-    #         'error': {
-    #             'message': 'Internal server error'
-    #         }
-    #     }), status=500)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
 
 
 @app.route("/users/<user_name>/<user_id>", methods=['DELETE'])
@@ -128,8 +128,10 @@ def list_users():
 @app.route("/users/<user_id>", methods=['PUT'])
 def update_user(user_id):
     try:
+        if 'username' in session:
+            logged_user = session['username']
         data = json.loads(request.data)
-        um.update_user(user_id, name=data.get('name'), age=data.get('age'), email=data.get('email'), role=data.get('role'), user_name= data.get('username'))
+        um.update_user(user_id, name=data.get('name'), age=data.get('age'), email=data.get('email'), role=data.get('role'), user_name= data.get('username'), logged=logged_user)
         return Response(json.dumps({
             'data': 'User has been updated successfully'
         }), status=200)

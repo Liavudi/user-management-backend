@@ -1,9 +1,8 @@
-from exceptions import *
 
 
-class User():
+
+class User:
     def __init__(self, user_name: str, name: str, password: int, email: str, age: int, role: str):
-        validation(user_name, name, password, email, age)
         self.user_name = user_name
         self.name = name
         self.age = age

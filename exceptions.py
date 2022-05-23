@@ -17,7 +17,7 @@ class NotFound(Exception):
         self.message = message
 
 
-class UsernameAlreadyExists(Exception):
+class AlreadyExists(Exception):
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
@@ -43,7 +43,7 @@ def validation(user_name: str = '', name: str = '', password: int = 6, email: st
         raise InvalidInputError('Name must be 3 or more letters')
     if int(age) < 18:
         raise InvalidInputError('You must be over 18')
-    if password <= 5:
+    if len(password) <= 5:
         raise InvalidInputError('Password must be 6 or more letters')
     if '@' not in email:
         raise InvalidInputError('Email must have @ in it')

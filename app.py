@@ -21,16 +21,12 @@ app.config.update(
 
 @app.route('/', methods=['POST'])
 def index():
-    input_data = json.loads(request.data)
-    if 'username' in session:
-        username = session['username']
-        return Response(json.dumps({'data': username}))
-    # error_message = 'Couldn\'t reach the DB. Try again later'
-    # return Response(json.dumps({
-    #     'error': {
-    #         'message': error_message
-    #     }
-    # }), status=400, mimetype='application/json')
+    error_message = 'Couldn\'t reach the DB. Try again later'
+    return Response(json.dumps({
+        'error': {
+            'message': error_message
+        }
+    }), status=400, mimetype='application/json')
 
 
 @app.route("/users", methods=['POST'])
@@ -58,18 +54,18 @@ def create_user():
                 'message': 'Service unavailable'
             }
         }), status=503)
-    except UsernameAlreadyExists as exc:
+    except AlreadyExists as exc:
         return Response(json.dumps({
             'error': {
                 'message': exc.message
             }
         }),status = 500)
-    except Exception:
-        return Response(json.dumps({
-            'error': {
-                'message': 'Internal server error'
-            }
-        }), status=500)
+    # except Exception:
+    #     return Response(json.dumps({
+    #         'error': {
+    #             'message': 'Internal server error'
+    #         }
+    #     }), status=500)
 
 
 @app.route("/users/<user_name>/<user_id>", methods=['DELETE'])
@@ -94,12 +90,19 @@ def delete_user(user_name, user_id):
         }), status=500)
 
 
-@app.route("/users/<user_name>", methods=['GET'])
-def list_users(user_name):
+@app.route("/users/", methods=['GET'])
+def list_users():
     try:
-        user_list = um.list_users(user_name= user_name)
-        return user_list
-
+        if 'username' in session:
+            user_name = session['username']
+            user_list = um.list_users(user_name)
+            return user_list
+        else:
+            return Response(json.dumps({
+                'error': {
+                    'message': 'You are not the user!'
+                }
+            }), status=401)
     except DBError:
         return Response(json.dumps({
             'error': {
@@ -136,10 +139,16 @@ def update_user(user_id):
                 'message': exc.message
             }
         }), status=400)
-    except DBError:
+    except NotAuthorized as exc:
         return Response(json.dumps({
             'error': {
-                'message': DBError.message
+                'message': exc.message
+            }
+        }), status=401)
+    except DBError as exc:
+        return Response(json.dumps({
+            'error': {
+                'message': exc.message
             }
         }), status=503)
 
@@ -165,12 +174,26 @@ def log_in():
                 'message': exc.message
             }
         }), status=404)
-    # except Exception:
-    #     return Response(json.dumps({
-    #         'error': {
-    #             'message': 'Internal server error'
-    #         }
-    #     }), status=500)
+    except Exception:
+        return Response(json.dumps({
+            'error': {
+                'message': 'Internal server error'
+            }
+        }), status=500)
+
+
+@app.route("/logout", methods=['POST'])
+def log_out():
+    if 'username' in session:
+        session.pop('username', default=None)
+        return Response(json.dumps({
+            'data': 'User has logged out successfully!'
+        }),status=200)
+    return Response(json.dumps({
+        'error':{
+            'message': 'User isn\'t logged in'
+        }
+    }),status=405)
 
 
 @app.route("/todolist", methods=['POST'])
@@ -195,10 +218,18 @@ def create_todo():
         }), status=500)
 
 
-@app.route("/todolist/<userId>", methods=['GET'])
-def get_todo(userId):
+@app.route("/todolist/", methods=['GET'])
+def get_todo():
     try:
-        return tm.get_todo_list(userId)
+        if 'username' in session:
+            user_id = session['username']
+            return tm.get_todo_list(user_id)
+        else:
+            return Response(json.dumps({
+                'error': {
+                    'message': 'You are not the user!'
+                }
+            }),status=401)
     except NotFound as exc:
         return Response(json.dumps({
             'error': {
